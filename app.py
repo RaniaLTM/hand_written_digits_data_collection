@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, send_file, url_for
 import os
 import base64
 from datetime import datetime
 import csv
-from io import StringIO
+from io import StringIO, BytesIO
+import zipfile
 
 from sqlalchemy import Column, DateTime, Integer, String, create_engine, select
 from sqlalchemy.orm import declarative_base, Session
@@ -102,6 +103,7 @@ def stats():
     Simple endpoint to check that data is being stored correctly.
     Returns total number of samples and up to 10 most recent.
     """
+    base_url = request.url_root.rstrip("/")
     with Session(engine) as session:
         all_ids = [row.id for row in session.scalars(select(DigitSample.id))]
         total = len(all_ids)
@@ -116,15 +118,33 @@ def stats():
                     "label": sample.label,
                     "timestamp": sample.timestamp.isoformat() if sample.timestamp else None,
                     "ip": sample.ip,
+                    "image_url": f"{base_url}/api/images/{sample.filename}",
                 }
             )
 
     return jsonify({"total": total, "recent": recent})
 
 
+@app.route("/view", methods=["GET"])
+def view_data():
+    """Simple HTML page to view all collected images from your machine."""
+    ensure_storage()
+    return render_template("view.html")
+
+
+@app.route("/api/images/<filename>", methods=["GET"])
+def serve_image(filename):
+    """Serve individual image files so you can view them in browser."""
+    file_path = os.path.join(IMAGES_DIR, filename)
+    if not os.path.exists(file_path):
+        return jsonify({"error": "Image not found"}), 404
+    return send_file(file_path, mimetype="image/png")
+
+
 @app.route("/api/export/json", methods=["GET"])
 def export_json():
-    """Return all samples as JSON so you can download them to your own machine."""
+    """Return all samples as JSON with image URLs so you can view them."""
+    base_url = request.url_root.rstrip("/")
     with Session(engine) as session:
         items = []
         for sample in session.scalars(select(DigitSample).order_by(DigitSample.id)):
@@ -135,6 +155,7 @@ def export_json():
                     "label": sample.label,
                     "timestamp": sample.timestamp.isoformat() if sample.timestamp else None,
                     "ip": sample.ip,
+                    "image_url": f"{base_url}/api/images/{sample.filename}",
                 }
             )
     return jsonify(items)
@@ -164,6 +185,27 @@ def export_csv():
         csv_data,
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=digit_samples.csv"},
+    )
+
+
+@app.route("/api/export/images", methods=["GET"])
+def export_images():
+    """Download all images as a ZIP file to your machine."""
+    zip_buffer = BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        if os.path.exists(IMAGES_DIR):
+            for filename in os.listdir(IMAGES_DIR):
+                if filename.endswith(".png"):
+                    file_path = os.path.join(IMAGES_DIR, filename)
+                    zip_file.write(file_path, filename)
+    
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name="digit_images.zip",
     )
 
 
