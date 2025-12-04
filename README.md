@@ -11,6 +11,7 @@ Users draw a digit on a canvas, choose the corresponding label, and submit; the 
 - **`static/script.js`**: Canvas drawing logic and submission via `fetch`.
 - **`data/images/`**: Generated at runtime; contains submitted digit PNGs.
 - **`data/labels.csv`**: Generated at runtime; one line per sample: `filename,label,timestamp,ip`.
+- **`data/digits.db`**: SQLite database created at runtime; table `digit_samples` stores all submissions.
 
 ### 2. Requirements
 
@@ -42,7 +43,19 @@ Open that URL in a browser and you will see:
 Each successful submission will:
 
 - Save a PNG file in `data/images/` named like `digit_5_20251204T123456789012Z.png`.
-- Append a row to `data/labels.csv` with filename, label, timestamp (UTC), and IP address.
+- Append a row to `data/labels.csv` with filename, label, timestamp (UTC), and IP address (for backup / quick viewing).
+- Insert a row into the **SQLite database** `data/digits.db` in the table `digit_samples`:
+  - `id` (auto-increment)
+  - `filename`
+  - `label`
+  - `timestamp` (UTC, `datetime`)
+  - `ip`
+
+To quickly inspect the database (for example using the CLI):
+
+```bash
+sqlite3 data/digits.db "SELECT id, filename, label, timestamp, ip FROM digit_samples LIMIT 10;"
+```
 
 ### 4. Basic production deployment (optional)
 
