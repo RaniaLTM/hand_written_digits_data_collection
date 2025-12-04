@@ -1,9 +1,11 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 import os
 import base64
 from datetime import datetime
+import csv
+from io import StringIO
 
-from sqlalchemy import Column, DateTime, Integer, String, create_engine
+from sqlalchemy import Column, DateTime, Integer, String, create_engine, select
 from sqlalchemy.orm import declarative_base, Session
 
 app = Flask(__name__)
@@ -92,6 +94,77 @@ def submit():
         session.commit()
 
     return jsonify({"status": "ok", "filename": filename})
+
+
+@app.route("/api/stats", methods=["GET"])
+def stats():
+    """
+    Simple endpoint to check that data is being stored correctly.
+    Returns total number of samples and up to 10 most recent.
+    """
+    with Session(engine) as session:
+        all_ids = [row.id for row in session.scalars(select(DigitSample.id))]
+        total = len(all_ids)
+        recent = []
+        for sample in session.scalars(
+            select(DigitSample).order_by(DigitSample.id.desc()).limit(10)
+        ):
+            recent.append(
+                {
+                    "id": sample.id,
+                    "filename": sample.filename,
+                    "label": sample.label,
+                    "timestamp": sample.timestamp.isoformat() if sample.timestamp else None,
+                    "ip": sample.ip,
+                }
+            )
+
+    return jsonify({"total": total, "recent": recent})
+
+
+@app.route("/api/export/json", methods=["GET"])
+def export_json():
+    """Return all samples as JSON so you can download them to your own machine."""
+    with Session(engine) as session:
+        items = []
+        for sample in session.scalars(select(DigitSample).order_by(DigitSample.id)):
+            items.append(
+                {
+                    "id": sample.id,
+                    "filename": sample.filename,
+                    "label": sample.label,
+                    "timestamp": sample.timestamp.isoformat() if sample.timestamp else None,
+                    "ip": sample.ip,
+                }
+            )
+    return jsonify(items)
+
+
+@app.route("/api/export/csv", methods=["GET"])
+def export_csv():
+    """Return all samples as a CSV file download."""
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["id", "filename", "label", "timestamp", "ip"])
+
+    with Session(engine) as session:
+        for sample in session.scalars(select(DigitSample).order_by(DigitSample.id)):
+            writer.writerow(
+                [
+                    sample.id,
+                    sample.filename,
+                    sample.label,
+                    sample.timestamp.isoformat() if sample.timestamp else "",
+                    sample.ip or "",
+                ]
+            )
+
+    csv_data = output.getvalue()
+    return Response(
+        csv_data,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=digit_samples.csv"},
+    )
 
 
 if __name__ == "__main__":
