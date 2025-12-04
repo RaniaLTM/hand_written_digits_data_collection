@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Handwritten Digit Collection</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+  <div class="page">
+    <header class="header">
+      <h1>Handwritten Digit Collection</h1>
+      <p>Draw a single digit (0–9), choose the correct label, and submit.</p>
+    </header>
+
+    <main class="main">
+      <section class="card">
+        <div class="canvas-container">
+          <canvas id="digitCanvas" width="280" height="280"></canvas>
+        </div>
+        <div class="controls">
+          <div class="row">
+            <label for="digitSelect">Digit label:</label>
+            <select id="digitSelect">
+              <option value="" disabled selected>Select digit</option>
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+            </select>
+          </div>
+
+          <div class="row buttons">
+            <button id="clearBtn" type="button" class="secondary">Clear</button>
+            <button id="submitBtn" type="button" class="primary">Submit sample</button>
+          </div>
+
+          <p id="status" class="status"></p>
+        </div>
+      </section>
+
+      <section class="help">
+        <h2>Instructions</h2>
+        <ol>
+          <li>Use your mouse (or finger on touch screens) to draw a single digit inside the square canvas.</li>
+          <li>Pick the correct digit from the dropdown list.</li>
+          <li>Click <strong>Submit sample</strong> to send it.</li>
+          <li>Click <strong>Clear</strong> to erase and try again.</li>
+        </ol>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+
+</html>
+
+
